@@ -1,4 +1,3 @@
-```markdown
 # AI Model and Image Processing App
 
 Selamat datang di proyek **AI Model and Image Processing App**. Aplikasi ini memungkinkan pengguna untuk:
