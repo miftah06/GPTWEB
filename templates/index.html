@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model and Image Processing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<style>
+	* {
+		box-sizing: border-box;
+		margin: 0;
+		padding: 0;
+	}
+
+	body {
+		font-family: 'Roboto', sans-serif;
+		background-color: #f4f4f4;
+		color: #333;
+		line-height: 1.6;
+	}
+
+	.container {
+		max-width: 900px;
+		margin: 20px auto;
+		padding: 20px;
+		background: white;
+		border-radius: 8px;
+		box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+	}
+
+	header {
+		text-align: center;
+	}
+
+	h1 {
+		margin-bottom: 10px;
+	}
+
+	h2 {
+		margin: 20px 0 10px;
+	}
+
+	.form-container {
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
+	}
+
+	textarea,
+	input[type="text"] {
+		width: 100%;
+		padding: 10px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		font-size: 16px;
+	}
+
+	button {
+		padding: 10px 15px;
+		background-color: #28a745;
+		color: white;
+		border: none;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: 16px;
+	}
+
+	button:hover {
+		background-color: #218838;
+	}
+
+	.results {
+		margin-top: 30px;
+	}
+
+	img.generated-image {
+		max-width: 100%;
+		height: auto;
+		margin-top: 10px;
+	}
+
+	.error {
+		color: red;
+	}
+</style>
+<body>
+	<header>
+		<p>Generated image:</p>
+		<iframe src="static/images.html" title="Image Gallery" style="width: 100%; height: 150px; border: none;"></iframe>
+	</header>
+	
+    <div class="container">
+        <header>
+            <h1>AI Model and Image Processing</h1>
+            <p>Generate images, chat with our AI model, or perform a Google search!</p>
+        </header>
+
+        <div class="form-container">
+            <form id="loginForm">
+                <h2>Login</h2>
+                <input type="password" id="password" placeholder="Enter your password" required>
+                <button type="submit">Login</button>
+            </form>
+
+            <form id="generateForm" style="display:none;">
+                <h2>Image Generation</h2>
+                <textarea id="imagePrompt" placeholder="Enter the text prompt for image generation..." required></textarea>
+                <button type="submit">Generate Image</button>
+            </form>
+
+            <form id="chatForm" style="display:none;">
+                <h2>Chat with AI</h2>
+                <input type="text" id="chatQuery" placeholder="Ask a question..." required>
+                <button type="submit">Chat</button>
+            </form>
+
+            <form id="dorkForm" style="display:none;">
+                <h2>Dorking (Google Search)</h2>
+                <input type="text" id="searchQuery" placeholder="Enter search query..." required>
+                <button type="submit">Search</button>
+            </form>
+        </div>
+
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        // Handle Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ password: password })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                // Show forms on successful login
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('generateForm').style.display = 'block';
+                document.getElementById('chatForm').style.display = 'block';
+                document.getElementById('dorkForm').style.display = 'block';
+            } else {
+                alert(data.error);
+            }
+        });
+
+        // Handle Image Generation
+        document.getElementById('generateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const prompt = document.getElementById('imagePrompt').value;
+            const password = document.getElementById('password').value;  // get the password again
+
+            const response = await fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ query: prompt, password: password })
+            });
+
+            const data = await response.json();
+            displayResults(data);
+        });
+
+        // Handle Chat Functionality
+        document.getElementById('chatForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = document.getElementById('chatQuery').value;
+            const password = document.getElementById('password').value;  // get the password again
+
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ query: query, password: password })
+            });
+
+            const data = await response.json();
+            displayResults(data);
+        });
+
+        // Handle Dorking Functionality
+        document.getElementById('dorkForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = document.getElementById('searchQuery').value;
+            const password = document.getElementById('password').value;  // get the password again
+
+            const response = await fetch('/dorking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ query: query, password: password })
+            });
+
+            const data = await response.json();
+            displayResults(data);
+        });
+
+		function displayResults(data) {
+			const resultsDiv = document.getElementById('results');
+			resultsDiv.innerHTML = '';
+
+			if (data.error) {
+				resultsDiv.innerHTML = `<p class="error">${data.error}</p>`;
+				return;
+			}
+
+			if (data.image_path) {
+				resultsDiv.innerHTML += `<img src="${data.image_path}" alt="Generated Image" class="generated-image">`;
+			}
+
+			if (data.ai_response) {
+				// Menampilkan AI response sebagai JSON yang terbaca
+				const aiResponse = typeof data.ai_response === 'object' ? JSON.stringify(data.ai_response, null, 2) : data.ai_response; 
+				resultsDiv.innerHTML += `<p class="response">AI: ${aiResponse}</p>`;
+			}
+
+			if (data.search_results) {
+				data.search_results.forEach(result => {
+					resultsDiv.innerHTML += `<p><a href="${result.link}" target="_blank">${result.title}</a></p>`;
+				});
+			}
+		}
+    </script>
+</body>
+</html>
